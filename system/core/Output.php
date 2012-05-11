@@ -479,10 +479,11 @@ class CI_Output {
 		}
 
 		$expire = time() + ($this->cache_expiration * 60);
+		$contentType = $this->_get_Header('Content-type');
 
 		if (flock($fp, LOCK_EX))
 		{
-			fwrite($fp, $expire.'TS--->'.$output);
+			fwrite($fp, 'Content-type:'.$contentType.'CT--->'.$expire.'TS--->'.$output);
 			flock($fp, LOCK_UN);
 		}
 		else
@@ -526,25 +527,47 @@ class CI_Output {
 		fclose($fp);
 
 		// Strip out the embedded timestamp
-		if ( ! preg_match('/(\d+TS--->)/', $cache, $match))
+		if ( ! preg_match("/(Content-type:.*CT--->)(\d+TS--->)/", $cache, $match))
 		{
 			return FALSE;
 		}
 
 		// Has the file expired? If so we'll delete it.
-		if (time() >= trim(str_replace('TS--->', '', $match[1])) && is_really_writable($cache_path))
+		if (time() >= trim(str_replace('TS--->', '', $match[2])) && is_really_writable($cache_path))
 		{
 			@unlink($filepath);
 			log_message('debug', 'Cache file has expired. File deleted.');
 			return FALSE;
 		}
+		$this->set_content_type(str_replace('Content-type:','',str_replace('CT--->', '', $match['1'])));
 
 		// Display the cache
 		$this->_display(str_replace($match[0], '', $cache));
 		log_message('debug', 'Cache file is current. Sending it to browser.');
 		return TRUE;
 	}
+	// --------------------------------------------------------------------
 
+	/**
+	 * get Header value
+	 *
+	 * @param 	object	header name
+	 * @return	string  header value
+	 */
+	function _get_Header($name)
+	{
+		if (count($this->headers) > 0)
+		{
+			foreach ($this->headers as $header)
+			{
+					$headerarr = explode(':',$header[0]);
+					if($headerarr[0] == $name)
+					{
+							 return  $headerarr[1];
+					}
+			}
+		}
+	}
 }
 
 /* End of file Output.php */
